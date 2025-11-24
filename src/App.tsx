@@ -24,6 +24,7 @@ import ResetPassword from './pages/ResetPassword';
 import IdentityCardUpload from './pages/IdentityCardUpload';
 import RescuerApplicationList from './pages/RescuerApplicationList';
 import ShareLocation from './pages/ShareLocation';
+import NearestRescuersView from './pages/NearestRescuersView';
 import './App.css';
 
 const { Header, Content, Footer } = Layout;
@@ -137,7 +138,14 @@ const AppContent: React.FC = () => {
           <Route path="/share-location" element={<ShareLocation />} />
           {/* Public route */}
           <Route path="/rescue-requests" element={<RequestRescueList />} />
-
+          <Route 
+  path="/rescue-requests/:requestId/nearest-rescuers" 
+  element={
+    <ProtectedRoute allowedRoles={['admin']}>
+      <NearestRescuersView />
+    </ProtectedRoute>
+  } 
+/>
           {/* Protected routes - only for Rescuers and admins */}
           <Route
             path="/rescue-initiations"
