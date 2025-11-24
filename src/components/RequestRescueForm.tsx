@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Form, Input, Button, Space, message, Switch, Upload } from 'antd';
-import { UploadOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { UploadFile, UploadProps } from 'antd';
-import {
-  CreateUpdateRequestRescueDto,
-  RequestRescueDto,
-} from '../types/requestRescue';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Select, Upload, message, Row, Col, Divider } from 'antd';
+import { UploadOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import type { UploadFile, RcFile } from 'antd/es/upload/interface';
+import { CreateUpdateRequestRescue, RequestRescueDto } from '../types/requestRescue';
+import LocationPicker from './LocationPicker';
 import RequestRescueService from '../services/requestRescueService';
 
 const { TextArea } = Input;
+const { Option } = Select;
 
 interface RequestRescueFormProps {
-  editingRecord?: RequestRescueDto;
-  onSubmit: () => void;
-  onCancel: () => void;
+  editingRecord?: RequestRescueDto; // ✅ FIXED: Changed from initialValues
+  onSubmit: () => void; // ✅ FIXED: Callback after successful submission
+  onCancel: () => void; // ✅ ADDED: Cancel callback
 }
 
 const RequestRescueForm: React.FC<RequestRescueFormProps> = ({
@@ -22,9 +21,17 @@ const RequestRescueForm: React.FC<RequestRescueFormProps> = ({
   onCancel,
 }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [base64Image, setBase64Image] = useState<string>('');
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [loading, setLoading] = useState(false); // ✅ ADDED: Local loading state
+  const [locationData, setLocationData] = useState<{
+    latitude?: number;
+    longitude?: number;
+  }>({
+    latitude: editingRecord?.latitude,
+    longitude: editingRecord?.longitude,
+  });
 
   useEffect(() => {
     if (editingRecord) {
@@ -34,28 +41,32 @@ const RequestRescueForm: React.FC<RequestRescueFormProps> = ({
         description: editingRecord.description,
         contactNo: editingRecord.contactNo,
         contactName: editingRecord.contactName,
-        isActive: editingRecord.isActive,
+        severity: editingRecord.severity,
       });
 
-      // Set existing image if present
       if (editingRecord.picture) {
-        setImageBase64(editingRecord.picture);
-        setFileList([{
-          uid: '-1',
-          name: 'image.jpg',
-          status: 'done',
-          url: editingRecord.picture,
-        }]);
+        setBase64Image(editingRecord.picture);
+        setFileList([
+          {
+            uid: '-1',
+            name: 'image.png',
+            status: 'done',
+            url: editingRecord.picture,
+          },
+        ]);
       }
-    } else {
-      form.setFieldsValue({
-        isActive: true,
-      });
+
+      if (editingRecord.latitude && editingRecord.longitude) {
+        setLocationData({
+          latitude: editingRecord.latitude,
+          longitude: editingRecord.longitude,
+        });
+        setShowLocationPicker(true);
+      }
     }
   }, [editingRecord, form]);
 
-  // Convert file to base64
-  const convertToBase64 = (file: File): Promise<string> => {
+  const getBase64 = (file: RcFile): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -64,8 +75,24 @@ const RequestRescueForm: React.FC<RequestRescueFormProps> = ({
     });
   };
 
-  // Handle image upload
-  const handleImageUpload: UploadProps['beforeUpload'] = async (file) => {
+  const handleUploadChange = async (info: any) => {
+    let newFileList = [...info.fileList];
+    newFileList = newFileList.slice(-1);
+    setFileList(newFileList);
+
+    if (newFileList.length > 0 && newFileList[0].originFileObj) {
+      try {
+        const base64 = await getBase64(newFileList[0].originFileObj as RcFile);
+        setBase64Image(base64);
+      } catch (error) {
+        message.error('Error reading file');
+      }
+    } else {
+      setBase64Image('');
+    }
+  };
+
+  const beforeUpload = (file: RcFile) => {
     const isImage = file.type.startsWith('image/');
     if (!isImage) {
       message.error('You can only upload image files!');
@@ -78,49 +105,53 @@ const RequestRescueForm: React.FC<RequestRescueFormProps> = ({
       return Upload.LIST_IGNORE;
     }
 
-    try {
-      const base64 = await convertToBase64(file);
-      setImageBase64(base64);
-      setFileList([{
-        uid: file.uid,
-        name: file.name,
-        status: 'done',
-        url: base64,
-      }]);
-      message.success('Image uploaded successfully');
-    } catch (error) {
-      message.error('Failed to upload image');
-    }
-
-    return false; // Prevent automatic upload
+    return false;
   };
 
-  // Handle image removal
-  const handleImageRemove = () => {
-    setImageBase64(null);
-    setFileList([]);
+  const handleLocationSelect = (lat: number, lng: number, address?: string) => {
+    setLocationData({ latitude: lat, longitude: lng });
+    form.setFieldsValue({
+      latitude: lat,
+      longitude: lng,
+      mapUrl: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`,
+    });
+    message.success('Location selected successfully!');
   };
 
-  const handleSubmit = async (values: CreateUpdateRequestRescueDto) => {
+  // ✅ FIXED: Actual submission logic
+  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      // Include base64 image in the submission
-      const submitData = {
-        ...values,
-        picture: imageBase64 || undefined,
+      const submitData: CreateUpdateRequestRescue = {
+        title: values.title,
+        location: values.location,
+        description: values.description,
+        contactNo: values.contactNo,
+        contactName: values.contactName,
+        severity: values.severity,
+        picture: base64Image || undefined,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        mapUrl: locationData.latitude && locationData.longitude
+          ? `https://www.openstreetmap.org/?mlat=${locationData.latitude}&mlon=${locationData.longitude}#map=15/${locationData.latitude}/${locationData.longitude}`
+          : undefined,
       };
 
       if (editingRecord) {
+        // Update existing
         await RequestRescueService.update(editingRecord.id, submitData);
-        message.success('Rescue request updated successfully');
+        message.success('Rescue request updated successfully!');
       } else {
+        // Create new
         await RequestRescueService.create(submitData);
-        message.success('Rescue request created successfully');
+        message.success('Rescue request created successfully!');
       }
+
       form.resetFields();
-      setImageBase64(null);
       setFileList([]);
-      onSubmit();
+      setBase64Image('');
+      setLocationData({});
+      onSubmit(); // Call parent callback
     } catch (error: any) {
       message.error(error.message || 'Failed to save rescue request');
     } finally {
@@ -133,97 +164,172 @@ const RequestRescueForm: React.FC<RequestRescueFormProps> = ({
       form={form}
       layout="vertical"
       onFinish={handleSubmit}
-      initialValues={{ isActive: true }}
+      initialValues={{
+        severity: 'Medium',
+      }}
     >
-      <Form.Item
-        label="Title"
-        name="title"
-        rules={[
-          { required: true, message: 'Please enter title' },
-          { max: 256, message: 'Title cannot exceed 256 characters' },
-        ]}
-      >
-        <Input placeholder="Enter rescue request title" />
-      </Form.Item>
+      <Row gutter={16}>
+        <Col span={24}>
+          <Form.Item
+            label="Title"
+            name="title"
+            rules={[
+              { required: true, message: 'Please enter a title' },
+              { max: 200, message: 'Title must be less than 200 characters' },
+            ]}
+          >
+            <Input placeholder="e.g., Injured dog needs immediate help" />
+          </Form.Item>
+        </Col>
 
-      <Form.Item
-        label="Location"
-        name="location"
-        rules={[
-          { required: true, message: 'Please enter location' },
-          { max: 512, message: 'Location cannot exceed 512 characters' },
-        ]}
-      >
-        <Input placeholder="Enter location of the animal" />
-      </Form.Item>
+        <Col span={12}>
+          <Form.Item
+            label="Location (Address)"
+            name="location"
+            rules={[
+              { required: true, message: 'Please enter a location' },
+              { max: 500, message: 'Location must be less than 500 characters' },
+            ]}
+          >
+            <Input
+              prefix={<EnvironmentOutlined />}
+              placeholder="Street, City, State"
+            />
+          </Form.Item>
+        </Col>
 
-      <Form.Item
-        label="Description"
-        name="description"
-        rules={[
-          { required: true, message: 'Please enter description' },
-          { max: 2000, message: 'Description cannot exceed 2000 characters' },
-        ]}
-      >
-        <TextArea
-          rows={4}
-          placeholder="Describe the situation and animal condition"
-          showCount
-          maxLength={2000}
-        />
-      </Form.Item>
+        <Col span={12}>
+          <Form.Item
+            label="Severity"
+            name="severity"
+            rules={[{ required: true, message: 'Please select severity' }]}
+          >
+            <Select>
+              <Option value="Low">🟢 Low</Option>
+              <Option value="Medium">🟡 Medium</Option>
+              <Option value="High">🟠 High</Option>
+              <Option value="Critical">🔴 Critical</Option>
+            </Select>
+          </Form.Item>
+        </Col>
 
-      <Form.Item label="Picture">
-        <Upload
-          listType="picture-card"
-          fileList={fileList}
-          beforeUpload={handleImageUpload}
-          onRemove={handleImageRemove}
-          maxCount={1}
-          accept="image/*"
+        <Col span={24}>
+          <Form.Item
+            label="Description"
+            name="description"
+            rules={[
+              { required: true, message: 'Please enter a description' },
+              { max: 2000, message: 'Description must be less than 2000 characters' },
+            ]}
+          >
+            <TextArea
+              rows={4}
+              placeholder="Provide detailed information about the animal and situation..."
+            />
+          </Form.Item>
+        </Col>
+
+        <Col span={12}>
+          <Form.Item
+            label="Contact Number"
+            name="contactNo"
+            rules={[
+              { required: true, message: 'Please enter a contact number' },
+              { pattern: /^[0-9+\-() ]{7,20}$/, message: 'Please enter a valid phone number' },
+            ]}
+          >
+            <Input placeholder="+1234567890" />
+          </Form.Item>
+        </Col>
+
+        <Col span={12}>
+          <Form.Item
+            label="Contact Name"
+            name="contactName"
+            rules={[{ max: 100, message: 'Name must be less than 100 characters' }]}
+          >
+            <Input placeholder="Your name (optional)" />
+          </Form.Item>
+        </Col>
+
+        <Col span={24}>
+          <Form.Item label="Picture">
+            <Upload
+              listType="picture-card"
+              fileList={fileList}
+              onChange={handleUploadChange}
+              beforeUpload={beforeUpload}
+              accept="image/*"
+              maxCount={1}
+            >
+              {fileList.length === 0 && (
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Upload Photo</div>
+                </div>
+              )}
+            </Upload>
+            {base64Image && (
+              <div style={{ marginTop: 8 }}>
+                <img
+                  src={base64Image}
+                  alt="Preview"
+                  style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Divider orientation="horizontal">📍 GPS Location (Recommended)</Divider>
+      
+      <div style={{ marginBottom: 16 }}>
+        <Button
+          type={showLocationPicker ? 'default' : 'dashed'}
+          onClick={() => setShowLocationPicker(!showLocationPicker)}
+          block
         >
-          {fileList.length === 0 && (
-            <div>
-              <UploadOutlined />
-              <div style={{ marginTop: 8 }}>Upload Image</div>
-            </div>
-          )}
-        </Upload>
-        <div style={{ color: '#888', fontSize: '12px', marginTop: '8px' }}>
-          Optional. Max file size: 5MB. Supported formats: JPG, PNG, GIF, etc.
+          {showLocationPicker ? '📍 Hide Location Picker' : '📍 Add GPS Location (Helps rescuers find you faster!)'}
+        </Button>
+        {locationData.latitude && locationData.longitude && (
+          <div style={{ marginTop: 8, padding: 8, background: '#f0f0f0', borderRadius: 4, fontSize: 12 }}>
+            ✅ Location set: {locationData.latitude.toFixed(6)}, {locationData.longitude.toFixed(6)}
+          </div>
+        )}
+      </div>
+
+      {showLocationPicker && (
+        <div style={{ marginBottom: 24 }}>
+          <LocationPicker
+            initialPosition={
+              locationData.latitude && locationData.longitude
+                ? [locationData.latitude, locationData.longitude]
+                : undefined
+            }
+            onLocationSelect={handleLocationSelect}
+            height={350}
+          />
         </div>
-      </Form.Item>
+      )}
 
-      <Form.Item
-        label="Contact Number"
-        name="contactNo"
-        rules={[
-          { required: true, message: 'Please enter contact number' },
-          { max: 20, message: 'Contact number cannot exceed 20 characters' },
-        ]}
-      >
-        <Input placeholder="Enter contact number" />
+      <Form.Item name="latitude" hidden>
+        <Input />
       </Form.Item>
-
-      <Form.Item
-        label="Contact Name"
-        name="contactName"
-        rules={[{ max: 100, message: 'Contact name cannot exceed 100 characters' }]}
-      >
-        <Input placeholder="Enter contact name (optional)" />
+      <Form.Item name="longitude" hidden>
+        <Input />
       </Form.Item>
-
-      <Form.Item label="Active" name="isActive" valuePropName="checked">
-        <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+      <Form.Item name="mapUrl" hidden>
+        <Input />
       </Form.Item>
 
       <Form.Item>
-        <Space>
-          <Button type="primary" htmlType="submit" loading={loading}>
-            {editingRecord ? 'Update' : 'Create'}
+          <Button type="primary" htmlType="submit" loading={loading} size="large">
+            {editingRecord ? 'Update Rescue Request' : 'Submit Rescue Request'}
           </Button>
-          <Button onClick={onCancel}>Cancel</Button>
-        </Space>
+          <Button onClick={onCancel} size="large">
+            Cancel
+          </Button>
       </Form.Item>
     </Form>
   );

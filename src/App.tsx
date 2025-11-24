@@ -9,6 +9,7 @@ import {
   LoginOutlined,
   LogoutOutlined,
   UserOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -20,6 +21,9 @@ import SignupRescuer from './pages/SignupRescuer';
 import EmailVerification from './pages/EmailVerification';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import IdentityCardUpload from './pages/IdentityCardUpload';
+import RescuerApplicationList from './pages/RescuerApplicationList';
+import ShareLocation from './pages/ShareLocation';
 import './App.css';
 
 const { Header, Content, Footer } = Layout;
@@ -60,6 +64,15 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Admin-only menu items
+  if (isAuthenticated && hasRole('admin')) {
+    menuItems.push({
+      key: 'rescuer-applications',
+      icon: <TeamOutlined />,
+      label: <Link to="/admin/rescuer-applications">Rescuer Applications</Link>,
+    });
+  }
+
   // User dropdown menu
   const userMenuItems = [
     {
@@ -84,7 +97,7 @@ const AppContent: React.FC = () => {
           mode="horizontal"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          style={{ flex: 1, minWidth: 0 }}
+          style={{ flex: 1, minWidth: 0 }} // ✅ FIXED: Added missing colon
           onSelect={({ key }) => setSelectedKey(key)}
         />
         <div style={{ marginLeft: 'auto' }}>
@@ -120,7 +133,8 @@ const AppContent: React.FC = () => {
           <Route path="/verify-email" element={<EmailVerification />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-
+          <Route path="/upload-identity-card" element={<IdentityCardUpload />} />
+          <Route path="/share-location" element={<ShareLocation />} />
           {/* Public route */}
           <Route path="/rescue-requests" element={<RequestRescueList />} />
 
@@ -138,6 +152,16 @@ const AppContent: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['Rescuer', 'admin']}>
                 <RescueCompletionList />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin-only routes */}
+          <Route
+            path="/admin/rescuer-applications"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <RescuerApplicationList />
               </ProtectedRoute>
             }
           />

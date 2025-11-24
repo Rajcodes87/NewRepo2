@@ -22,7 +22,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { RequestRescueDto, REQUEST_RESCUE_STATUS_OPTIONS } from '../types/requestRescue';
+import { RequestRescueDto, REQUEST_RESCUE_STATUS_OPTIONS, REQUEST_RESCUE_SEVERITY_OPTIONS } from '../types/requestRescue';
 import { useAuth } from '../contexts/AuthContext';
 import RequestRescueService from '../services/requestRescueService';
 import RequestRescueForm from '../components/RequestRescueForm';
@@ -40,6 +40,7 @@ const RequestRescueList: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [severityFilter, setSeverityFilter] = useState<string | undefined>();
   const [isActiveFilter, setIsActiveFilter] = useState<boolean | undefined>();
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<RequestRescueDto | undefined>();
@@ -57,6 +58,7 @@ const RequestRescueList: React.FC = () => {
         {
           searchKeyword,
           status: statusFilter as any,
+          severity: severityFilter as any,
           isActive: isActiveFilter,
         }
       );
@@ -71,7 +73,7 @@ const RequestRescueList: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, pageSize, searchKeyword, statusFilter, isActiveFilter]);
+  }, [currentPage, pageSize, searchKeyword, statusFilter, severityFilter, isActiveFilter]);
 
   // Handle delete
   const handleDelete = async (id: string) => {
@@ -120,6 +122,20 @@ const RequestRescueList: React.FC = () => {
         return 'success';
       case 'Cancelled':
         return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  // Get severity color
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'Low':
+        return 'green';
+      case 'Medium':
+        return 'gold';
+      case 'High':
+        return 'red';
       default:
         return 'default';
     }
@@ -202,6 +218,17 @@ const RequestRescueList: React.FC = () => {
       render: (status: string) => (
         <Tag color={getStatusColor(status)}>
           {REQUEST_RESCUE_STATUS_OPTIONS.find(s => s.value === status)?.label || status}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Severity',
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 100,
+      render: (severity: string) => (
+        <Tag color={getSeverityColor(severity)}>
+          {REQUEST_RESCUE_SEVERITY_OPTIONS.find(s => s.value === severity)?.label || severity}
         </Tag>
       ),
     },
@@ -307,6 +334,18 @@ const RequestRescueList: React.FC = () => {
               {REQUEST_RESCUE_STATUS_OPTIONS.map((status) => (
                 <Option key={status.value} value={status.value}>
                   {status.label}
+                </Option>
+              ))}
+            </Select>
+            <Select
+              placeholder="Filter by Severity"
+              style={{ width: 150 }}
+              allowClear
+              onChange={setSeverityFilter}
+            >
+              {REQUEST_RESCUE_SEVERITY_OPTIONS.map((severity) => (
+                <Option key={severity.value} value={severity.value}>
+                  {severity.label}
                 </Option>
               ))}
             </Select>

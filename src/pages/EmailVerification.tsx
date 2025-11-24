@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, Typography, message, Space, Result } from 'antd';
+import { Form, Input, Button, Card, Typography, message, Space, Result, Alert } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MailOutlined, SafetyOutlined } from '@ant-design/icons';
+import { MailOutlined, SafetyOutlined, LoadingOutlined } from '@ant-design/icons';
 import authService from '../services/authService';
 
 const { Title, Text } = Typography;
@@ -10,6 +10,7 @@ const EmailVerification: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email') || '';
@@ -22,20 +23,77 @@ const EmailVerification: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('🔍 Verifying email:', email);
       const response = await authService.verifyEmail(email, values.code);
+
+      console.log('✅ Verification response:', response);
 
       if (response.success) {
         message.success(response.message || 'Email verified successfully!');
         setVerified(true);
 
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        // Get stored credentials from sessionStorage (set during signup)
+        const storedUsername = sessionStorage.getItem('signup_username');
+        const storedPassword = sessionStorage.getItem('signup_password');
+
+        console.log('📦 Stored credentials check:', {
+          hasUsername: !!storedUsername,
+          hasPassword: !!storedPassword,
+          username: storedUsername
+        });
+
+        if (storedUsername && storedPassword) {
+          // Auto-login after verification
+          setLoggingIn(true);
+          try {
+            console.log('🔐 Attempting auto-login for user:', storedUsername);
+            const loginResult = await authService.login(storedUsername, storedPassword);
+            
+            console.log('✅ Login successful:', loginResult);
+            
+            // Clear stored credentials
+            sessionStorage.removeItem('signup_username');
+            sessionStorage.removeItem('signup_password');
+            
+            message.success('You are now logged in. Redirecting to identity card upload...');
+            
+            // Redirect to identity card upload
+            setTimeout(() => {
+              console.log('🚀 Redirecting to /upload-identity-card');
+              navigate('/upload-identity-card');
+            }, 1500);
+          } catch (loginError: any) {
+            console.error('❌ Auto-login failed:', loginError);
+            console.error('Error details:', {
+              message: loginError.message,
+              response: loginError.response?.data,
+              status: loginError.response?.status
+            });
+            
+            message.warning('Email verified! Please login manually to upload your identity card.');
+            
+            // Redirect to login if auto-login fails
+            setTimeout(() => {
+              console.log('🚀 Redirecting to login page');
+              navigate(`/login?email=${email}&redirect=/upload-identity-card`);
+            }, 2000);
+          } finally {
+            setLoggingIn(false);
+          }
+        } else {
+          // No stored credentials, redirect to login
+          console.warn('⚠️ No stored credentials found');
+          message.info('Please login to upload your identity card.');
+          setTimeout(() => {
+            console.log('🚀 Redirecting to login page (no credentials)');
+            navigate(`/login?email=${email}&redirect=/upload-identity-card`);
+          }, 2000);
+        }
       } else {
         message.error(response.message || 'Verification failed. Please try again.');
       }
     } catch (error: any) {
+      console.error('❌ Verification error:', error);
       const errorMessage = error.response?.data?.error?.message ||
                           'An error occurred during verification. Please try again.';
       message.error(errorMessage);
@@ -49,16 +107,30 @@ const EmailVerification: React.FC = () => {
     // TODO: Implement resend verification code API
   };
 
+  if (verified && loggingIn) {
+    return (
+      <div style={{ maxWidth: 500, margin: '50px auto', padding: '0 20px' }}>
+        <Card>
+          <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
+            <LoadingOutlined style={{ fontSize: 48, color: '#52c41a' }} spin />
+            <Title level={3}>Logging you in...</Title>
+            <Text type="secondary">Please wait while we set up your account</Text>
+          </Space>
+        </Card>
+      </div>
+    );
+  }
+
   if (verified) {
     return (
       <div style={{ maxWidth: 500, margin: '50px auto', padding: '0 20px' }}>
         <Result
           status="success"
           title="Email Verified Successfully!"
-          subTitle="Your account is now active. You will be redirected to login page..."
+          subTitle="Redirecting you to upload your identity card..."
           extra={[
-            <Button type="primary" key="login" onClick={() => navigate('/login')}>
-              Go to Login
+            <Button type="primary" key="upload" onClick={() => navigate('/upload-identity-card')}>
+              Upload Identity Card Now
             </Button>,
           ]}
         />
@@ -80,6 +152,13 @@ const EmailVerification: React.FC = () => {
               <Text strong>{email}</Text>
             </div>
           </div>
+
+          <Alert
+            message="After Verification"
+            description="Once verified, you'll be automatically logged in and redirected to upload your identity card for admin verification."
+            type="info"
+            showIcon
+          />
 
           <Form
             form={form}

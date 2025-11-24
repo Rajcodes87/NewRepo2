@@ -37,6 +37,11 @@ const SignupRescuer: React.FC = () => {
 
       if (response.success) {
         message.success(response.message || 'Registration successful! Please verify your email.');
+        
+        // ✅ Store credentials in sessionStorage for auto-login after email verification
+        sessionStorage.setItem('signup_username', values.userName);
+        sessionStorage.setItem('signup_password', values.password);
+        
         // Redirect to email verification page with email parameter
         navigate(`/verify-email?email=${encodeURIComponent(values.email)}`);
       } else {
