@@ -13,6 +13,8 @@ public static class RequestRescueConsts
         public const int ContactNo = 20;
         public const int ContactName = 100;
         public const int Status = 50;
+        public const int Severity = 20;
+        public const int MapUrl = 1000;
     }
 
     public static class RequestStatus
@@ -22,6 +24,13 @@ public static class RequestRescueConsts
         public const string InProgress = "InProgress"; // A rescuer has been selected and accepted
         public const string Completed = "Completed";
         public const string Cancelled = "Cancelled";
+    }
+
+    public static class Severity
+    {
+        public const string Low = "Low";
+        public const string Medium = "Medium";
+        public const string High = "High";
     }
 }
 

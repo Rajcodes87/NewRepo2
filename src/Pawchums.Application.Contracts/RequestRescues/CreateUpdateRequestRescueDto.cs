@@ -1,32 +1,36 @@
-using AnimalRescueSystem.Constants;
-using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace AnimalRescueSystem.RequestRescues;
 
 public class CreateUpdateRequestRescueDto
 {
-    [Required(ErrorMessage = "Title is required.")]
-    [StringLength(RequestRescueConsts.MaxLength.Title, ErrorMessage = "Title must not exceed {1} characters.")]
+    [Required]
+    [StringLength(200)]
     public string Title { get; set; }
 
-    [Required(ErrorMessage = "Location is required.")]
-    [StringLength(RequestRescueConsts.MaxLength.Location, ErrorMessage = "Location must not exceed {1} characters.")]
+    [Required]
+    [StringLength(500)]
     public string Location { get; set; }
 
-    [Required(ErrorMessage = "Description is required.")]
-    [StringLength(RequestRescueConsts.MaxLength.Description, ErrorMessage = "Description must not exceed {1} characters.")]
+    [Required]
+    [StringLength(2000)]
     public string Description { get; set; }
 
-    // Picture field stores base64 encoded image - no length validation needed
     public string? Picture { get; set; }
 
-    [Required(ErrorMessage = "Contact number is required.")]
-    [StringLength(RequestRescueConsts.MaxLength.ContactNo, ErrorMessage = "Contact number must not exceed {1} characters.")]
+    [Required]
+    [StringLength(20)]
     public string ContactNo { get; set; }
 
-    [StringLength(RequestRescueConsts.MaxLength.ContactName, ErrorMessage = "Contact name must not exceed {1} characters.")]
+    [StringLength(100)]
     public string? ContactName { get; set; }
 
-    public bool IsActive { get; set; } = true;
+    [Required]
+    [StringLength(20)]
+    public string Severity { get; set; }
+
+    // ✅ NEW: GPS Coordinates
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public string? MapUrl { get; set; }
 }
