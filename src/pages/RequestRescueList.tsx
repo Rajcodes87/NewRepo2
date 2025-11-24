@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { RequestRescueDto, REQUEST_RESCUE_STATUS_OPTIONS } from '../types/requestRescue';
+import { useAuth } from '../contexts/AuthContext';
 import RequestRescueService from '../services/requestRescueService';
 import RequestRescueForm from '../components/RequestRescueForm';
 import dayjs from 'dayjs';
@@ -31,6 +32,7 @@ const { Search } = Input;
 const { Option } = Select;
 
 const RequestRescueList: React.FC = () => {
+  const { hasRole } = useAuth();
   const [data, setData] = useState<RequestRescueDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -230,6 +232,9 @@ const RequestRescueList: React.FC = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
+          {/* Only admins can edit, activate/deactivate, and delete */}
+           {hasRole('admin') && (
+          <>
           <Tooltip title="Edit">
             <Button
               type="link"
@@ -257,7 +262,12 @@ const RequestRescueList: React.FC = () => {
               <Button type="link" danger icon={<DeleteOutlined />} />
             </Popconfirm>
           </Tooltip>
-        </Space>
+          </>
+        )}
+      {!hasRole('admin') && (
+      <span style={{ color: '#888', fontSize: '12px' }}>View Only</span>
+      )}
+    </Space>
       ),
     },
   ];

@@ -25,6 +25,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { RescueCompletionDto, VerifyCompletionDto } from '../types/rescueCompletion';
 import RescueCompletionService from '../services/rescueCompletionService';
 import RescueCompletionForm from '../components/RescueCompletionForm';
+import { useAuth } from '../contexts/AuthContext';
 import dayjs from 'dayjs';
 
 const { Search } = Input;
@@ -32,6 +33,7 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const RescueCompletionList: React.FC = () => {
+  const { hasRole } = useAuth();
   const [data, setData] = useState<RescueCompletionDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
@@ -197,16 +199,19 @@ const RescueCompletionList: React.FC = () => {
         <Space size="small">
           {!record.isVerified && (
             <>
-              <Tooltip title="Verify">
-                <Button
-                  type="link"
-                  icon={<SafetyOutlined />}
-                  onClick={() => {
-                    setVerifyingRecord(record);
-                    setIsVerifyModalVisible(true);
-                  }}
-                />
-              </Tooltip>
+              {/* Only admins can verify */}
+              {hasRole('admin') && (
+                <Tooltip title="Verify">
+                  <Button
+                    type="link"
+                    icon={<SafetyOutlined />}
+                    onClick={() => {
+                      setVerifyingRecord(record);
+                      setIsVerifyModalVisible(true);
+                    }}
+                  />
+                </Tooltip>
+              )}
               <Tooltip title="Edit">
                 <Button
                   type="link"
@@ -229,7 +234,8 @@ const RescueCompletionList: React.FC = () => {
               </Tooltip>
             </>
           )}
-          {record.isVerified && (
+          {/* Only admins can unverify */}
+          {record.isVerified && hasRole('admin') && (
             <Tooltip title="Unverify">
               <Popconfirm
                 title="Are you sure you want to unverify this completion?"
@@ -240,6 +246,9 @@ const RescueCompletionList: React.FC = () => {
                 <Button type="link" icon={<CloseCircleOutlined />} />
               </Popconfirm>
             </Tooltip>
+          )}
+          {record.isVerified && !hasRole('admin') && (
+            <span style={{ color: '#888', fontSize: '12px' }}>Verified</span>
           )}
         </Space>
       ),
