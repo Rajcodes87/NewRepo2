@@ -3,6 +3,8 @@ using AnimalRescueSystem.Entities.RequestRescues;
 using Microsoft.EntityFrameworkCore;
 using Pawchums.Entities.EmailVerification;
 using Pawchums.Entities.RequestRescues;
+using Pawchums.Entities.RescuerApplication;
+using Pawchums.Entities.RescuerProfile;
 using Volo.Abp.AuditLogging.EntityFrameworkCore;
 using Volo.Abp.BackgroundJobs.EntityFrameworkCore;
 using Volo.Abp.Data;
@@ -52,8 +54,9 @@ public class PawchumsDbContext :
     public DbSet<RescueInitiation> RescueInitiations { get; set; }
     public DbSet<RescueCompletion> RescueCompletions { get; set; }
     public DbSet<RescuerNotification> RescuerNotifications { get; set; }
+    public DbSet<RescuerApplication> RescuerApplications { get; set; }
     public DbSet<EmailVerificationCode> EmailVerificationCodes { get; set; }
-
+    public DbSet<RescuerProfile> RescuerProfiles { get; set; }
     public PawchumsDbContext(DbContextOptions<PawchumsDbContext> options)
         : base(options)
     {
@@ -97,9 +100,14 @@ public class PawchumsDbContext :
             // Status
             b.Property(t => t.Status).HasMaxLength(RequestRescueConsts.MaxLength.Status).IsRequired();
 
+            // Severity
+            b.Property(t => t.Severity).HasMaxLength(RequestRescueConsts.MaxLength.Severity).IsRequired();
+
             // Active Status
             b.Property(t => t.IsActive).IsRequired();
-
+            b.Property(t => t.Latitude).HasColumnType("double precision").IsRequired(false);
+            b.Property(t => t.Longitude).HasColumnType("double precision").IsRequired(false);
+            b.Property(t => t.MapUrl).HasMaxLength(RequestRescueConsts.MaxLength.MapUrl).IsRequired(false);
             // Relationships
             b.HasMany(t => t.RescueInitiations)
                 .WithOne(ri => ri.RequestRescue)
@@ -115,6 +123,8 @@ public class PawchumsDbContext :
             b.HasIndex(t => t.Status);
             b.HasIndex(t => t.RequestDate);
             b.HasIndex(t => t.IsActive);
+            b.HasIndex(t => t.Severity);
+            b.HasIndex(t => new { t.Latitude, t.Longitude });
         });
 
         // RescueInitiation Configuration
@@ -211,6 +221,44 @@ public class PawchumsDbContext :
             b.HasIndex(t => t.RescuerId);
             b.HasIndex(t => t.IsRead);
             b.HasIndex(t => new { t.RescuerId, t.IsRead }); // For fetching unread notifications
+        });
+
+        // RescuerApplication Configuration
+        builder.Entity<RescuerApplication>(b =>
+        {
+            b.ToTable(PawchumsConsts.DbTablePrefix + "RescuerApplications", PawchumsConsts.DbSchema);
+            b.ConfigureByConvention();
+            b.HasKey(t => t.Id);
+
+            // User Information
+            b.Property(t => t.UserId).IsRequired();
+            b.Property(t => t.UserName).HasMaxLength(RescuerApplicationConsts.MaxLength.UserName).IsRequired();
+            b.Property(t => t.Email).HasMaxLength(RescuerApplicationConsts.MaxLength.Email).IsRequired();
+            b.Property(t => t.Name).HasMaxLength(RescuerApplicationConsts.MaxLength.Name).IsRequired();
+            b.Property(t => t.Surname).HasMaxLength(RescuerApplicationConsts.MaxLength.Surname).IsRequired();
+            b.Property(t => t.PhoneNumber).HasMaxLength(RescuerApplicationConsts.MaxLength.PhoneNumber).IsRequired();
+
+            // Application Details
+            b.Property(t => t.IdentityCardPicture).HasColumnType("text").IsRequired(false);
+            b.Property(t => t.Status).HasMaxLength(RescuerApplicationConsts.MaxLength.Status).IsRequired();
+            b.Property(t => t.ApplicationDate).IsRequired();
+
+            // Review Information
+            b.Property(t => t.ReviewedByUserId).IsRequired(false);
+            b.Property(t => t.ReviewedDate).IsRequired(false);
+            b.Property(t => t.ReviewNotes).HasMaxLength(RescuerApplicationConsts.MaxLength.ReviewNotes).IsRequired(false);
+
+            // Foreign Key to ABP Users
+            b.HasOne<IdentityUser>()
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Indexes
+            b.HasIndex(t => t.UserId);
+            b.HasIndex(t => t.Email).IsUnique();
+            b.HasIndex(t => t.Status);
+            b.HasIndex(t => t.ApplicationDate);
         });
     }
 }

@@ -409,6 +409,7 @@ public class RescueCompletionAppService : ApplicationService, IRescueCompletionA
     /// <returns></returns>
     /// <exception cref="UserFriendlyException"></exception>
     //[Authorize(AnimalRescueSystemPermissions.RescueCompletions.Verify)]
+    [Authorize(Roles = "admin")]
     public async Task<ResponseDataDto<object>> VerifyCompletionAsync([Required(ErrorMessage = "Id is required.")] Guid id, VerifyCompletionDto input)
     {
         try
@@ -460,6 +461,7 @@ public class RescueCompletionAppService : ApplicationService, IRescueCompletionA
     /// <returns></returns>
     /// <exception cref="UserFriendlyException"></exception>
     //[Authorize(AnimalRescueSystemPermissions.RescueCompletions.Unverify)]
+    [Authorize(Roles = "admin")]
     public async Task<ResponseDataDto<object>> UnverifyCompletionAsync([Required(ErrorMessage = "Id is required.")] Guid id)
     {
         try

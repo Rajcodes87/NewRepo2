@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Pawchums.Services;
 using Volo.Abp.Account;
 using Volo.Abp.AutoMapper;
 using Volo.Abp.Emailing;
@@ -30,6 +31,7 @@ public class PawchumsApplicationModule : AbpModule
         {
             options.AddMaps<PawchumsApplicationModule>();
         });
+        context.Services.AddTransient<DistanceCalculationService>();
 
     }
 }

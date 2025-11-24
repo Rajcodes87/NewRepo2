@@ -22,9 +22,14 @@ public class RequestRescue : FullAuditedAggregateRoot<Guid>, IMultiTenant
     // Status Management
     public virtual string Status { get; set; } // NotInitiated, Initiated, InProgress, Completed, Cancelled
 
+    // Severity
+    public virtual string Severity { get; set; } // Low, Medium, High
+
     // Active Status
     public virtual bool IsActive { get; set; }
-
+    public virtual double? Latitude { get; set; }
+    public virtual double? Longitude { get; set; }
+    public virtual string? MapUrl { get; set; }
     // Navigation Properties
     public virtual ICollection<RescueInitiation> RescueInitiations { get; set; }
     public virtual RescueCompletion? RescueCompletion { get; set; }

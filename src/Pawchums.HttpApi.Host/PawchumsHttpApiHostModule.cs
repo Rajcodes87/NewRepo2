@@ -1,3 +1,5 @@
+﻿using Hangfire;
+using Hangfire.PostgreSql;
 using Medallion.Threading;
 using Medallion.Threading.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -5,7 +7,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,11 +24,11 @@ using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.AspNetCore.Mvc.UI.MultiTenancy;
 using Volo.Abp.AspNetCore.Serilog;
 using Volo.Abp.Autofac;
+using Volo.Abp.BackgroundJobs.Hangfire;
 using Volo.Abp.Caching;
 using Volo.Abp.Caching.StackExchangeRedis;
 using Volo.Abp.DistributedLocking;
-using Volo.Abp.Identity;
-using Volo.Abp.Localization;
+using Volo.Abp.Hangfire;
 using Volo.Abp.Modularity;
 using Volo.Abp.Security.Claims;
 using Volo.Abp.Swashbuckle;
@@ -45,6 +46,7 @@ namespace Pawchums;
     typeof(PawchumsApplicationModule),
     typeof(PawchumsEntityFrameworkCoreModule),
     typeof(AbpAspNetCoreSerilogModule),
+    typeof(AbpBackgroundJobsHangfireModule),
     typeof(AbpSwashbuckleModule)
 )]
 public class PawchumsHttpApiHostModule : AbpModule
@@ -63,11 +65,23 @@ public class PawchumsHttpApiHostModule : AbpModule
         ConfigureCors(context, configuration);
         ConfigureSwaggerServices(context, configuration);
         ConfigureAntiForgery();
+        ConfigureHangfire(context, configuration);
+
     }
 
     private void ConfigureCache(IConfiguration configuration)
     {
         Configure<AbpDistributedCacheOptions>(options => { options.KeyPrefix = "Pawchums:"; });
+    }
+    private void ConfigureHangfire(ServiceConfigurationContext context, IConfiguration configuration)
+    {
+        context.Services.AddHangfire(config =>
+        {
+            config.UsePostgreSqlStorage(options =>
+            {
+                options.UseNpgsqlConnection(configuration.GetConnectionString("Default"));
+            });
+        });
     }
 
     private void ConfigureVirtualFileSystem(ServiceConfigurationContext context)
@@ -225,5 +239,7 @@ public class PawchumsHttpApiHostModule : AbpModule
         app.UseAuditing();
         app.UseAbpSerilogEnrichers();
         app.UseConfiguredEndpoints();
+        app.UseAbpHangfireDashboard();
+
     }
 }

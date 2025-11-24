@@ -1,10 +1,11 @@
-using AnimalRescueSystem.Constants;
+﻿using AnimalRescueSystem.Constants;
 using AnimalRescueSystem.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using Pawchums.Identity;
 using Pawchums.Services;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Volo.Abp;
 using Volo.Abp.Application.Services;
@@ -68,7 +69,7 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
             )
             {
                 Name = input.Name,
-                Surname = input.Surname
+                Surname = input.Surname,
             };
 
             newUser.SetEmailConfirmed(false);
@@ -78,20 +79,13 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
             var result = await _userManager.CreateAsync(newUser, input.Password);
             if (!result.Succeeded)
             {
-                var errors = string.Join(", ", result.Errors);
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("RescuerRegistrationAppService - RegisterAsync: User creation failed: {Errors}", errors);
                 throw new UserFriendlyException($"User registration failed: {errors}", "400");
             }
 
-            // Assign Rescuer role
-            var rescuerRole = await _roleRepository.FindByNormalizedNameAsync("RESCUER");
-            if (rescuerRole == null)
-            {
-                _logger.LogError("RescuerRegistrationAppService - RegisterAsync: Rescuer role not found");
-                throw new UserFriendlyException("Rescuer role is not configured. Please contact the administrator.", "500");
-            }
-
-            await _userManager.AddToRoleAsync(newUser, rescuerRole.Name);
+            // ❌ DO NOT assign Rescuer role here - it will be assigned after identity verification
+            // Role assignment happens in RescuerApplicationAppService.ReviewAsync when admin approves
 
             // Send verification email
             await _emailVerificationService.GenerateAndSendVerificationCodeAsync(
@@ -148,18 +142,19 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
                 throw new UserFriendlyException("User not found.", "404");
             }
 
-            // Activate user
+            // ✅ Activate user and confirm email - they can now login
             user.SetIsActive(true);
             user.SetEmailConfirmed(true);
             await _userRepository.UpdateAsync(user);
 
-            _logger.LogInformation("RescuerRegistrationAppService - VerifyEmailAsync: Email verified and account activated for {Email}", input.Email);
+            _logger.LogInformation("RescuerRegistrationAppService - VerifyEmailAsync: Email verified and account activated for {Email}. User can now login but needs identity verification to become a Rescuer.", input.Email);
 
             return new ResponseDataDto<object>
             {
                 Code = 200,
                 Success = true,
-                Message = "Email verified successfully! Your account is now active. You can log in now."
+                Message = "Email verified successfully! Please login and upload your identity card to complete your rescuer verification.",
+                Data = new { userId = user.Id, email = user.Email, userName = user.UserName }
             };
         }
         catch (UserFriendlyException)
@@ -183,7 +178,7 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
             var user = await _userRepository.FindByNormalizedEmailAsync(_userManager.NormalizeEmail(input.Email));
             if (user == null)
             {
-                // Don't reveal if user exists or not
+                // Don't reveal if user exists or not for security
                 _logger.LogWarning("RescuerRegistrationAppService - ForgotPasswordAsync: User not found for {Email}", input.Email);
                 return new ResponseDataDto<object>
                 {
@@ -210,7 +205,7 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "RescuerRegistrationAppService - ForgotPasswordAsync: Error processing password reset for {Email}", input.Email);
+            _logger.LogError(ex, "RescuerRegistrationAppService - ForgotPasswordAsync: Error during password reset for {Email}", input.Email);
             throw new UserFriendlyException("An error occurred. Please try again later.", "500");
         }
     }
@@ -226,7 +221,7 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
 
             if (!isValid)
             {
-                throw new UserFriendlyException("Invalid or expired verification code.", "400");
+                throw new UserFriendlyException("Invalid or expired reset code.", "400");
             }
 
             // Find the user
@@ -242,7 +237,7 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
 
             if (!result.Succeeded)
             {
-                var errors = string.Join(", ", result.Errors);
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 _logger.LogError("RescuerRegistrationAppService - ResetPasswordAsync: Password reset failed: {Errors}", errors);
                 throw new UserFriendlyException($"Password reset failed: {errors}", "400");
             }
@@ -253,7 +248,7 @@ public class RescuerRegistrationAppService : ApplicationService, IRescuerRegistr
             {
                 Code = 200,
                 Success = true,
-                Message = "Password reset successfully! You can now log in with your new password."
+                Message = "Password reset successfully! You can now login with your new password."
             };
         }
         catch (UserFriendlyException)

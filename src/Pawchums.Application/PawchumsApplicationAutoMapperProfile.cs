@@ -3,8 +3,12 @@ using AnimalRescueSystem.Entities.RequestRescues;
 using AnimalRescueSystem.RequestRescues;
 using AnimalRescueSystem.RescueCompletions;
 using AnimalRescueSystem.RescueInitiations;
+using AnimalRescueSystem.RescuerApplications;
+using AnimalRescueSystem.RescuerProfiles;
 using AutoMapper;
 using Pawchums.Entities.RequestRescues;
+using Pawchums.Entities.RescuerApplication;
+using Pawchums.Entities.RescuerProfile;
 using Pawchums.RescueCompletions;
 using System;
 
@@ -59,5 +63,11 @@ public class PawchumsApplicationAutoMapperProfile : Profile
         CreateMap<RescuerNotification, RescuerNotificationDto>()
             .ForMember(dest => dest.RequestTitle, opt => opt.MapFrom(src => src.RequestRescue.Title))
             .ForMember(dest => dest.RequestLocation, opt => opt.MapFrom(src => src.RequestRescue.Location));
+        CreateMap<RescuerApplication, RescuerApplicationDto>();
+        CreateMap<CreateRescuerApplicationDto, RescuerApplication>();
+
+        CreateMap<RescuerProfile, RescuerProfileDto>();
+        CreateMap<CreateUpdateRescuerProfileDto, RescuerProfile>()
+            .ForMember(dest => dest.LocationUpdatedAt, opt => opt.MapFrom(src => DateTime.UtcNow));
     }
 }
